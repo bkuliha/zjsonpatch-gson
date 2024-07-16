@@ -16,88 +16,87 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import java.util.EnumSet;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 
 class InPlaceApplyProcessor implements JsonPatchProcessor {
 
-    private JsonNode target;
+    private JsonElement target;
     private EnumSet<CompatibilityFlags> flags;
 
-    InPlaceApplyProcessor(JsonNode target) {
+    InPlaceApplyProcessor(JsonElement target) {
         this(target, CompatibilityFlags.defaults());
     }
 
-    InPlaceApplyProcessor(JsonNode target, EnumSet<CompatibilityFlags> flags) {
+    InPlaceApplyProcessor(JsonElement target, EnumSet<CompatibilityFlags> flags) {
         this.target = target;
         this.flags = flags;
     }
 
-    public JsonNode result() {
+    public JsonElement result() {
         return target;
     }
 
     @Override
     public void move(JsonPointer fromPath, JsonPointer toPath) throws JsonPointerEvaluationException {
-        JsonNode valueNode = fromPath.evaluate(target);
+    	JsonElement valueNode = fromPath.evaluate(target);
         remove(fromPath);
         set(toPath, valueNode, Operation.MOVE);
     }
 
     @Override
     public void copy(JsonPointer fromPath, JsonPointer toPath) throws JsonPointerEvaluationException {
-        JsonNode valueNode = fromPath.evaluate(target);
-        JsonNode valueToCopy = valueNode != null ? valueNode.deepCopy() : null;
+    	JsonElement valueNode = fromPath.evaluate(target);
+    	JsonElement valueToCopy = valueNode != null ? valueNode.deepCopy() : null;
         set(toPath, valueToCopy, Operation.COPY);
     }
 
-    private static String show(JsonNode value) {
-        if (value == null || value.isNull())
+    private static String show(JsonElement value) {
+        if (value == null || value.isJsonNull())
             return "null";
-        else if (value.isArray())
+        else if (value.isJsonArray())
             return "array";
-        else if (value.isObject())
+        else if (value.isJsonObject())
             return "object";
         else
             return "value " + value.toString();     // Caveat: numeric may differ from source (e.g. trailing zeros)
     }
 
     @Override
-    public void test(JsonPointer path, JsonNode value) throws JsonPointerEvaluationException {
-        JsonNode valueNode = path.evaluate(target);
+    public void test(JsonPointer path, JsonElement value) throws JsonPointerEvaluationException {
+    	JsonElement valueNode = path.evaluate(target);
         if (!valueNode.equals(value))
             throw new JsonPatchApplicationException(
                     "Expected " + show(value) + " but found " + show(valueNode), Operation.TEST, path);
     }
 
     @Override
-    public void add(JsonPointer path, JsonNode value) throws JsonPointerEvaluationException {
+    public void add(JsonPointer path, JsonElement value) throws JsonPointerEvaluationException {
         set(path, value, Operation.ADD);
     }
 
     @Override
-    public void replace(JsonPointer path, JsonNode value) throws JsonPointerEvaluationException {
+    public void replace(JsonPointer path, JsonElement value) throws JsonPointerEvaluationException {
         if (path.isRoot()) {
             target = value;
             return;
         }
 
-        JsonNode parentNode = path.getParent().evaluate(target);
+        JsonElement parentNode = path.getParent().evaluate(target);
         JsonPointer.RefToken token = path.last();
-        if (parentNode.isObject()) {
+        if (parentNode.isJsonObject()) {
             if (!flags.contains(CompatibilityFlags.ALLOW_MISSING_TARGET_OBJECT_ON_REPLACE) &&
-                    !parentNode.has(token.getField()))
+                    !parentNode.getAsJsonObject().has(token.getField()))
                 throw new JsonPatchApplicationException(
                         "Missing field \"" + token.getField() + "\"", Operation.REPLACE, path.getParent());
-            ((ObjectNode) parentNode).replace(token.getField(), value);
-        } else if (parentNode.isArray()) {
-            if (token.getIndex() >= parentNode.size())
+            parentNode.getAsJsonObject().add(token.getField(), value);
+        } else if (parentNode.isJsonArray()) {
+            if (token.getIndex() >= parentNode.getAsJsonArray().size())
                 throw new JsonPatchApplicationException(
                         "Array index " + token.getIndex() + " out of bounds", Operation.REPLACE, path.getParent());
-            ((ArrayNode) parentNode).set(token.getIndex(), value);
+            parentNode.getAsJsonArray().set(token.getIndex(), value);
         } else {
             throw new JsonPatchApplicationException(
                     "Can't reference past scalar value", Operation.REPLACE, path.getParent());
@@ -109,50 +108,51 @@ class InPlaceApplyProcessor implements JsonPatchProcessor {
         if (path.isRoot())
             throw new JsonPatchApplicationException("Cannot remove document root", Operation.REMOVE, path);
 
-        JsonNode parentNode = path.getParent().evaluate(target);
+        JsonElement parentNode = path.getParent().evaluate(target);
         JsonPointer.RefToken token = path.last();
-        if (parentNode.isObject()) {
-            if (flags.contains(CompatibilityFlags.FORBID_REMOVE_MISSING_OBJECT) && !parentNode.has(token.getField()))
+        if (parentNode.isJsonObject()) {
+            if (flags.contains(CompatibilityFlags.FORBID_REMOVE_MISSING_OBJECT) && !parentNode.getAsJsonObject().has(token.getField()))
                 throw new JsonPatchApplicationException(
                         "Missing field " + token.getField(), Operation.REMOVE, path.getParent());
-            ((ObjectNode) parentNode).remove(token.getField());
+            parentNode.getAsJsonObject().remove(token.getField());
         }
-        else if (parentNode.isArray()) {
+        else if (parentNode.isJsonArray()) {
             if (!flags.contains(CompatibilityFlags.REMOVE_NONE_EXISTING_ARRAY_ELEMENT) &&
-                    token.getIndex() >= parentNode.size())
+                    token.getIndex() >= parentNode.getAsJsonArray().size())
                 throw new JsonPatchApplicationException(
                         "Array index " + token.getIndex() + " out of bounds", Operation.REMOVE, path.getParent());
-            ((ArrayNode) parentNode).remove(token.getIndex());
+            if (token.getIndex() >= parentNode.getAsJsonArray().size()) {
+            	// ignore
+            } else {
+            	parentNode.getAsJsonArray().remove(token.getIndex());
+            }
         } else {
             throw new JsonPatchApplicationException(
                     "Cannot reference past scalar value", Operation.REMOVE, path.getParent());
         }
     }
 
-
-
-    private void set(JsonPointer path, JsonNode value, Operation forOp) throws JsonPointerEvaluationException {
+    private void set(JsonPointer path, JsonElement value, Operation forOp) throws JsonPointerEvaluationException {
         if (path.isRoot())
             target = value;
         else {
-            JsonNode parentNode = path.getParent().evaluate(target);
-            if (!parentNode.isContainerNode())
+            JsonElement parentNode = path.getParent().evaluate(target);
+            if (!(parentNode.isJsonArray() || parentNode.isJsonObject()))
                 throw new JsonPatchApplicationException("Cannot reference past scalar value", forOp, path.getParent());
-            else if (parentNode.isArray())
+            else if (parentNode.isJsonArray())
                 addToArray(path, value, parentNode);
             else
                 addToObject(path, parentNode, value);
         }
     }
 
-    private void addToObject(JsonPointer path, JsonNode node, JsonNode value) {
-        final ObjectNode target = (ObjectNode) node;
+    private void addToObject(JsonPointer path, JsonElement node, JsonElement value) {
         String key = path.last().getField();
-        target.set(key, value);
+        node.getAsJsonObject().add(key, value);
     }
 
-    private void addToArray(JsonPointer path, JsonNode value, JsonNode parentNode) {
-        final ArrayNode target = (ArrayNode) parentNode;
+    private void addToArray(JsonPointer path, JsonElement value, JsonElement parentNode) {
+        final JsonArray target = parentNode.getAsJsonArray();
         int idx = path.last().getIndex();
 
         if (idx == JsonPointer.LAST_INDEX) {
@@ -162,7 +162,22 @@ class InPlaceApplyProcessor implements JsonPatchProcessor {
             if (idx > target.size())
                 throw new JsonPatchApplicationException(
                         "Array index " + idx + " out of bounds", Operation.ADD, path.getParent());
-            target.insert(idx, value);
+            
+            // Shift elements to the right to make space for the new element
+            for (int i = target.size() - 1; i >= idx; i--) {
+            	if (i+1 >= target.size()) {
+            		target.add(target.get(i));
+            	} else {
+            		target.set(i + 1, target.get(i));
+            	}
+            }
+            
+            // Insert the new element at the specified index
+            if (idx >= target.size()) {
+            	target.add(value);
+            } else {
+            	target.set(idx, value);
+            }
         }
     }
 }

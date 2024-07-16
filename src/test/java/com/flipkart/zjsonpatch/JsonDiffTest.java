@@ -16,45 +16,46 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.commons.io.IOUtils;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.EnumSet;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.commons.io.IOUtils;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 /**
  * Unit test
  */
 public class JsonDiffTest {
-    private static ObjectMapper objectMapper = new ObjectMapper();
-    private static ArrayNode jsonNode;
+    private static Gson objectMapper = new GsonBuilder().create();
+    private static JsonArray jsonNode;
 
     @BeforeClass
     public static void beforeClass() throws IOException {
         String path = "/testdata/sample.json";
         InputStream resourceAsStream = JsonDiffTest.class.getResourceAsStream(path);
         String testData = IOUtils.toString(resourceAsStream, "UTF-8");
-        jsonNode = (ArrayNode) objectMapper.readTree(testData);
+        jsonNode = (JsonArray) objectMapper.fromJson(testData, JsonArray.class);
     }
 
     @Test
     public void testSampleJsonDiff() {
         for (int i = 0; i < jsonNode.size(); i++) {
-            JsonNode first = jsonNode.get(i).get("first");
-            JsonNode second = jsonNode.get(i).get("second");
-            JsonNode actualPatch = JsonDiff.asJson(first, second);
-            JsonNode secondPrime = JsonPatch.apply(actualPatch, first);
+            JsonElement first = jsonNode.get(i).getAsJsonObject().get("first");
+            JsonElement second = jsonNode.get(i).getAsJsonObject().get("second");
+            JsonArray actualPatch = JsonDiff.asJson(first, second);
+            JsonElement secondPrime = JsonPatch.apply(actualPatch, first);
             Assert.assertEquals("JSON Patch not symmetrical [index=" + i + ", first=" + first + "]", second, secondPrime);
         }
     }
@@ -63,97 +64,97 @@ public class JsonDiffTest {
     public void testGeneratedJsonDiff() {
         Random random = new Random();
         for (int i = 0; i < 1000; i++) {
-            JsonNode first = TestDataGenerator.generate(random.nextInt(10));
-            JsonNode second = TestDataGenerator.generate(random.nextInt(10));
-            JsonNode actualPatch = JsonDiff.asJson(first, second);
-            JsonNode secondPrime = JsonPatch.apply(actualPatch, first);
+        	JsonElement first = TestDataGenerator.generate(random.nextInt(10));
+        	JsonElement second = TestDataGenerator.generate(random.nextInt(10));
+        	JsonArray actualPatch = JsonDiff.asJson(first, second);
+        	JsonElement secondPrime = JsonPatch.apply(actualPatch, first);
             Assert.assertEquals(second, secondPrime);
         }
     }
 
     @Test
     public void testRenderedRemoveOperationOmitsValueByDefault() {
-        ObjectNode source = objectMapper.createObjectNode();
-        ObjectNode target = objectMapper.createObjectNode();
-        source.put("field", "value");
+        JsonObject source = new JsonObject();
+        JsonObject target = new JsonObject();
+        source.addProperty("field", "value");
 
-        JsonNode diff = JsonDiff.asJson(source, target);
+        JsonArray diff = JsonDiff.asJson(source, target);
 
-        Assert.assertEquals(Operation.REMOVE.rfcName(), diff.get(0).get("op").textValue());
-        Assert.assertEquals("/field", diff.get(0).get("path").textValue());
-        Assert.assertNull(diff.get(0).get("value"));
+        Assert.assertEquals(Operation.REMOVE.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        Assert.assertEquals("/field", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        Assert.assertNull(diff.get(0).getAsJsonObject().get("value"));
     }
 
     @Test
     public void testRenderedRemoveOperationRetainsValueIfOmitDiffFlagNotSet() {
-        ObjectNode source = objectMapper.createObjectNode();
-        ObjectNode target = objectMapper.createObjectNode();
-        source.put("field", "value");
+        JsonObject source = new JsonObject();
+        JsonObject target = new JsonObject();
+        source.addProperty("field", "value");
 
         EnumSet<DiffFlags> flags = DiffFlags.defaults().clone();
         Assert.assertTrue("Expected OMIT_VALUE_ON_REMOVE by default", flags.remove(DiffFlags.OMIT_VALUE_ON_REMOVE));
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonArray diff = JsonDiff.asJson(source, target, flags);
 
-        Assert.assertEquals(Operation.REMOVE.rfcName(), diff.get(0).get("op").textValue());
-        Assert.assertEquals("/field", diff.get(0).get("path").textValue());
-        Assert.assertEquals("value", diff.get(0).get("value").textValue());
+        Assert.assertEquals(Operation.REMOVE.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        Assert.assertEquals("/field", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        Assert.assertEquals("value", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("value")));
     }
 
     @Test
     public void testRenderedOperationsExceptMoveAndCopy() throws Exception {
-        JsonNode source = objectMapper.readTree("{\"age\": 10}");
-        JsonNode target = objectMapper.readTree("{\"height\": 10}");
+    	JsonElement source = objectMapper.fromJson("{\"age\": 10}", JsonElement.class);
+        JsonElement target = objectMapper.fromJson("{\"height\": 10}", JsonElement.class);
 
         EnumSet<DiffFlags> flags = DiffFlags.dontNormalizeOpIntoMoveAndCopy().clone(); //only have ADD, REMOVE, REPLACE, Don't normalize operations into MOVE & COPY
 
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonArray diff = JsonDiff.asJson(source, target, flags);
 
-        for (JsonNode d : diff) {
-            Assert.assertNotEquals(Operation.MOVE.rfcName(), d.get("op").textValue());
-            Assert.assertNotEquals(Operation.COPY.rfcName(), d.get("op").textValue());
+        for (JsonElement d : diff) {
+            Assert.assertNotEquals(Operation.MOVE.rfcName(), TestUtils.getTextValue(d.getAsJsonObject().get("op")));
+            Assert.assertNotEquals(Operation.COPY.rfcName(), TestUtils.getTextValue(d.getAsJsonObject().get("op")));
         }
 
-        JsonNode targetPrime = JsonPatch.apply(diff, source);
+        JsonElement targetPrime = JsonPatch.apply(diff, source);
         Assert.assertEquals(target, targetPrime);
     }
 
     @Test
     public void testPath() throws Exception {
-        JsonNode source = objectMapper.readTree("{\"profiles\":{\"abc\":[],\"def\":[{\"hello\":\"world\"}]}}");
-        JsonNode patch = objectMapper.readTree("[{\"op\":\"copy\",\"from\":\"/profiles/def/0\", \"path\":\"/profiles/def/0\"},{\"op\":\"replace\",\"path\":\"/profiles/def/0/hello\",\"value\":\"world2\"}]");
+    	JsonElement source = objectMapper.fromJson("{\"profiles\":{\"abc\":[],\"def\":[{\"hello\":\"world\"}]}}", JsonElement.class);
+    	JsonElement patch = objectMapper.fromJson("[{\"op\":\"copy\",\"from\":\"/profiles/def/0\", \"path\":\"/profiles/def/0\"},{\"op\":\"replace\",\"path\":\"/profiles/def/0/hello\",\"value\":\"world2\"}]", JsonElement.class);
 
-        JsonNode target = JsonPatch.apply(patch, source);
-        JsonNode expected = objectMapper.readTree("{\"profiles\":{\"abc\":[],\"def\":[{\"hello\":\"world2\"},{\"hello\":\"world\"}]}}");
+    	JsonElement target = JsonPatch.apply(patch, source);
+    	JsonElement expected = objectMapper.fromJson("{\"profiles\":{\"abc\":[],\"def\":[{\"hello\":\"world2\"},{\"hello\":\"world\"}]}}", JsonElement.class);
         Assert.assertEquals(target, expected);
     }
 
     @Test
     public void testJsonDiffReturnsEmptyNodeExceptionWhenBothSourceAndTargetNodeIsNull() {
-        JsonNode diff = JsonDiff.asJson(null, null);
-        assertEquals(0, diff.size());
+    	JsonElement diff = JsonDiff.asJson(null, null);
+        assertEquals(0, diff.getAsJsonArray().size());
     }
 
     @Test
-    public void testJsonDiffShowsDiffWhenSourceNodeIsNull() throws JsonProcessingException {
+    public void testJsonDiffShowsDiffWhenSourceNodeIsNull() throws Exception {
         String target = "{ \"K1\": {\"K2\": \"V1\"} }";
-        JsonNode diff = JsonDiff.asJson(null, objectMapper.reader().readTree(target));
-        assertEquals(1, diff.size());
+        JsonArray diff = JsonDiff.asJson(null, objectMapper.fromJson(target, JsonElement.class));
+        assertEquals(1, diff.getAsJsonArray().size());
 
         System.out.println(diff);
-        assertEquals(Operation.ADD.rfcName(), diff.get(0).get("op").textValue());
-        assertEquals(JsonPointer.ROOT.toString(), diff.get(0).get("path").textValue());
-        assertEquals("V1", diff.get(0).get("value").get("K1").get("K2").textValue());
+        assertEquals(Operation.ADD.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        assertEquals(JsonPointer.ROOT.toString(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        assertEquals("V1", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("value").getAsJsonObject().get("K1").getAsJsonObject().get("K2")));
     }
 
     @Test
-    public void testJsonDiffShowsDiffWhenTargetNodeIsNullWithFlags() throws JsonProcessingException {
+    public void testJsonDiffShowsDiffWhenTargetNodeIsNullWithFlags() throws Exception {
         String source = "{ \"K1\": \"V1\" }";
-        JsonNode sourceNode = objectMapper.reader().readTree(source);
-        JsonNode diff = JsonDiff.asJson(sourceNode, null, EnumSet.of(DiffFlags.ADD_ORIGINAL_VALUE_ON_REPLACE));
+        JsonElement sourceNode = objectMapper.fromJson(source, JsonElement.class);
+        JsonArray diff = JsonDiff.asJson(sourceNode, null, EnumSet.of(DiffFlags.ADD_ORIGINAL_VALUE_ON_REPLACE));
 
         assertEquals(1, diff.size());
-        assertEquals(Operation.REMOVE.rfcName(), diff.get(0).get("op").textValue());
-        assertEquals(JsonPointer.ROOT.toString(), diff.get(0).get("path").textValue());
-        assertEquals("V1", diff.get(0).get("value").get("K1").textValue());
+        assertEquals(Operation.REMOVE.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        assertEquals(JsonPointer.ROOT.toString(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        assertEquals("V1", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("value").getAsJsonObject().get("K1")));
     }
 }

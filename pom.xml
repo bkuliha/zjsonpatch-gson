@@ -3,14 +3,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.flipkart.zjsonpatch</groupId>
-    <artifactId>zjsonpatch</artifactId>
+    <artifactId>zjsonpatch-gson</artifactId>
     <version>0.4.17-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>zjsonpatch</name>
     <description>Java Library to find / apply JSON Patches according to RFC 6902</description>
+    <!-- 
     <url>https://github.com/flipkart-incubator/zjsonpatch/</url>
+     -->
 
+	<!--
     <scm>
         <connection>scm:git:https://github.com/flipkart-incubator/zjsonpatch.git</connection>
         <developerConnection>scm:git:https://github.com/flipkart-incubator/zjsonpatch.git</developerConnection>
@@ -25,6 +28,7 @@
             <email>vishwakarma.iiita@gmail.com</email>
         </developer>
     </developers>
+	-->
 
     <licenses>
         <license>
@@ -40,7 +44,7 @@
         <compileSource>1.8</compileSource>
         <testCompileSource>1.8</testCompileSource>
 
-        <jackson.version>2.14.0</jackson.version>
+        <!-- <jackson.version>2.14.0</jackson.version> -->
         <junit.version>5.9.2</junit.version>
     </properties>
 
@@ -59,15 +63,11 @@
                     <showWarnings>true</showWarnings>
                 </configuration>
             </plugin>
+            <!-- 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0</version>
-<!--                <configuration>-->
-<!--                    <forkCount>3</forkCount>-->
-<!--                    <reuseForks>true</reuseForks>-->
-<!--                    <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>-->
-<!--                </configuration>-->
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -131,10 +131,16 @@
                     <goals>deploy</goals>
                 </configuration>
             </plugin>
+             -->
         </plugins>
     </build>
     <dependencies>
-        <dependency>
+    	<dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+			<version>2.11.0</version>
+		</dependency>
+        <!-- <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
@@ -143,7 +149,7 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${jackson.version}</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-collections4</artifactId>
@@ -174,7 +180,7 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <distributionManagement>
+<!--     <distributionManagement>
         <snapshotRepository>
             <id>ossrh</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
@@ -183,5 +189,5 @@
             <id>ossrh</id>
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
-    </distributionManagement>
+    </distributionManagement> -->
 </project>

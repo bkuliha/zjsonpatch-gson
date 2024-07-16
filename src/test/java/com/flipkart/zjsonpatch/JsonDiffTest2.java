@@ -16,43 +16,45 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import static org.hamcrest.core.IsEqual.equalTo;
+
+import java.io.IOException;
+import java.io.InputStream;
+
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-import static org.hamcrest.core.IsEqual.equalTo;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 
 /**
  * @author ctranxuan (streamdata.io).
  */
 public class JsonDiffTest2 {
-    private static ObjectMapper objectMapper = new ObjectMapper();
-    private static ArrayNode jsonNode;
+	private static Gson objectMapper = new GsonBuilder().create();
+    private static JsonArray jsonNode;
 
     @BeforeClass
     public static void beforeClass() throws IOException {
         String path = "/testdata/diff.json";
         InputStream resourceAsStream = JsonDiffTest.class.getResourceAsStream(path);
         String testData = IOUtils.toString(resourceAsStream, "UTF-8");
-        jsonNode = (ArrayNode) objectMapper.readTree(testData);
+        jsonNode = (JsonArray) objectMapper.fromJson(testData, JsonElement.class);
     }
 
     @Test
     public void testPatchAppliedCleanly() {
         for (int i = 0; i < jsonNode.size(); i++) {
-            JsonNode first = jsonNode.get(i).get("first");
-            JsonNode second = jsonNode.get(i).get("second");
-            JsonNode patch = jsonNode.get(i).get("patch");
-            String message = jsonNode.get(i).get("message").toString();
+            JsonElement first = jsonNode.get(i).getAsJsonObject().get("first");
+            JsonElement second = jsonNode.get(i).getAsJsonObject().get("second");
+            JsonElement patch = jsonNode.get(i).getAsJsonObject().get("patch");
+            String message = jsonNode.get(i).getAsJsonObject().get("message").toString();
 
-            JsonNode secondPrime = JsonPatch.apply(patch, first);
+            JsonElement secondPrime = JsonPatch.apply(patch, first);
 
             Assert.assertThat(message, secondPrime, equalTo(second));
         }

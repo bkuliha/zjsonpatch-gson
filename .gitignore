@@ -5,3 +5,7 @@ target/*
 *.iws
 *.idea
 flipkart-boot.log
+/target/
+.settings
+.classpath
+.project

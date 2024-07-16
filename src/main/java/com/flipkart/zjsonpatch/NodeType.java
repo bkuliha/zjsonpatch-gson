@@ -16,11 +16,11 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
-
 import java.util.EnumMap;
 import java.util.Map;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
 
 enum NodeType {
     /**
@@ -57,19 +57,16 @@ enum NodeType {
      */
     private final String name;
 
-    private static final Map<JsonToken, NodeType> TOKEN_MAP
-            = new EnumMap<JsonToken, NodeType>(JsonToken.class);
+    private static final Map<JsonElementType, NodeType> TOKEN_MAP = new EnumMap<>(JsonElementType.class);
 
     static {
-        TOKEN_MAP.put(JsonToken.START_ARRAY, ARRAY);
-        TOKEN_MAP.put(JsonToken.VALUE_TRUE, BOOLEAN);
-        TOKEN_MAP.put(JsonToken.VALUE_FALSE, BOOLEAN);
-        TOKEN_MAP.put(JsonToken.VALUE_NUMBER_INT, INTEGER);
-        TOKEN_MAP.put(JsonToken.VALUE_NUMBER_FLOAT, NUMBER);
-        TOKEN_MAP.put(JsonToken.VALUE_NULL, NULL);
-        TOKEN_MAP.put(JsonToken.START_OBJECT, OBJECT);
-        TOKEN_MAP.put(JsonToken.VALUE_STRING, STRING);
-
+        TOKEN_MAP.put(JsonElementType.ARRAY, ARRAY);
+        TOKEN_MAP.put(JsonElementType.BOOLEAN, BOOLEAN);
+        TOKEN_MAP.put(JsonElementType.INTEGER, INTEGER);
+        TOKEN_MAP.put(JsonElementType.NUMBER, NUMBER);
+        TOKEN_MAP.put(JsonElementType.NULL, NULL);
+        TOKEN_MAP.put(JsonElementType.OBJECT, OBJECT);
+        TOKEN_MAP.put(JsonElementType.STRING, STRING);
     }
 
     NodeType(final String name) {
@@ -81,10 +78,41 @@ enum NodeType {
         return name;
     }
 
-    public static NodeType getNodeType(final JsonNode node) {
-        final JsonToken token = node.asToken();
-        final NodeType ret = TOKEN_MAP.get(token);
-        if (ret == null) throw new NullPointerException("unhandled token type " + token);
+    public static NodeType getNodeType(final JsonElement element) {
+        JsonElementType elementType = getElementType(element);
+        final NodeType ret = TOKEN_MAP.get(elementType);
+        if (ret == null) throw new NullPointerException("unhandled element type " + elementType);
         return ret;
     }
+    
+    private static JsonElementType getElementType(JsonElement element) {
+        if (element.isJsonArray()) {
+            return JsonElementType.ARRAY;
+        } else if (element.isJsonPrimitive()) {
+            JsonPrimitive primitive = element.getAsJsonPrimitive();
+            if (primitive.isBoolean()) {
+                return JsonElementType.BOOLEAN;
+            } else if (primitive.isNumber()) {
+                return primitive.getAsNumber() instanceof Integer ? JsonElementType.INTEGER : JsonElementType.NUMBER;
+            } else if (primitive.isString()) {
+                return JsonElementType.STRING;
+            }
+        } else if (element.isJsonNull()) {
+            return JsonElementType.NULL;
+        } else if (element.isJsonObject()) {
+            return JsonElementType.OBJECT;
+        }
+        throw new IllegalArgumentException("Unknown element type: " + element);
+    }
+
+    private enum JsonElementType {
+        ARRAY,
+        BOOLEAN,
+        INTEGER,
+        NUMBER,
+        NULL,
+        OBJECT,
+        STRING
+    }
+    
 }

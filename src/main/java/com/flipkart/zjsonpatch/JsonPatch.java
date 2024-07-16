@@ -16,11 +16,11 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.NullNode;
-
 import java.util.EnumSet;
 import java.util.Iterator;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 
 /**
  * User: gopi.vishwakarma
@@ -31,42 +31,57 @@ public final class JsonPatch {
     private JsonPatch() {
     }
 
-    private static JsonNode getPatchStringAttr(JsonNode jsonNode, String attr) {
-        JsonNode child = getPatchAttr(jsonNode, attr);
+    private static JsonElement getPatchStringAttr(JsonElement jsonNode, String attr) {
+    	JsonElement child = getPatchAttr(jsonNode, attr);
 
-        if (!child.isTextual())
+        if (!(child.isJsonPrimitive() && child.getAsJsonPrimitive().isString()))
             throw new InvalidJsonPatchException("Invalid JSON Patch payload (non-text '" + attr + "' field)");
 
         return child;
     }
 
-    private static JsonNode getPatchAttr(JsonNode jsonNode, String attr) {
-        JsonNode child = jsonNode.get(attr);
+    private static JsonElement getPatchAttr(JsonElement jsonNode, String attr) {
+    	if (!jsonNode.isJsonObject()) {
+    		throw new InvalidJsonPatchException("Invalid JSON Patch payload (missing '" + attr + "' field)");
+    	}
+    	JsonElement child = jsonNode.getAsJsonObject().get(attr);
         if (child == null)
             throw new InvalidJsonPatchException("Invalid JSON Patch payload (missing '" + attr + "' field)");
 
         return child;
     }
 
-    private static JsonNode getPatchAttrWithDefault(JsonNode jsonNode, String attr, JsonNode defaultValue) {
-        JsonNode child = jsonNode.get(attr);
+    private static JsonElement getPatchAttrWithDefault(JsonElement jsonNode, String attr, JsonElement defaultValue) {
+    	if (!jsonNode.isJsonObject()) {
+    		return defaultValue;
+    	}
+    	JsonElement child = jsonNode.getAsJsonObject().get(attr);
         if (child == null)
             return defaultValue;
         else
             return child;
     }
+    
+    private static String getTextValue(JsonElement jsonElement) {
+    	if (jsonElement.isJsonPrimitive()) {
+    		if (jsonElement.getAsJsonPrimitive().isString()) {
+    			return jsonElement.getAsJsonPrimitive().getAsString();
+    		}
+    	}
+    	return null;
+    }
 
-    private static void process(JsonNode patch, JsonPatchProcessor processor, EnumSet<CompatibilityFlags> flags)
+    private static void process(JsonElement patch, JsonPatchProcessor processor, EnumSet<CompatibilityFlags> flags)
             throws InvalidJsonPatchException {
 
-        if (!patch.isArray())
+        if (!patch.isJsonArray())
             throw new InvalidJsonPatchException("Invalid JSON Patch payload (not an array)");
-        Iterator<JsonNode> operations = patch.iterator();
+        Iterator<JsonElement> operations = patch.getAsJsonArray().iterator();
         while (operations.hasNext()) {
-            JsonNode jsonNode = operations.next();
-            if (!jsonNode.isObject()) throw new InvalidJsonPatchException("Invalid JSON Patch payload (not an object)");
-            Operation operation = Operation.fromRfcName(getPatchStringAttr(jsonNode, Constants.OP).textValue());
-            JsonPointer path = JsonPointer.parse(getPatchStringAttr(jsonNode, Constants.PATH).textValue());
+        	JsonElement jsonNode = operations.next();
+            if (!jsonNode.isJsonObject()) throw new InvalidJsonPatchException("Invalid JSON Patch payload (not an object)");
+            Operation operation = Operation.fromRfcName(getTextValue(getPatchStringAttr(jsonNode, Constants.OP)));
+            JsonPointer path = JsonPointer.parse(getTextValue(getPatchStringAttr(jsonNode, Constants.PATH)));
 
             try {
                 switch (operation) {
@@ -76,43 +91,43 @@ public final class JsonPatch {
                     }
 
                     case ADD: {
-                        JsonNode value;
+                    	JsonElement value;
                         if (!flags.contains(CompatibilityFlags.MISSING_VALUES_AS_NULLS))
                             value = getPatchAttr(jsonNode, Constants.VALUE);
                         else
-                            value = getPatchAttrWithDefault(jsonNode, Constants.VALUE, NullNode.getInstance());
+                            value = getPatchAttrWithDefault(jsonNode, Constants.VALUE, JsonNull.INSTANCE);
                         processor.add(path, value.deepCopy());
                         break;
                     }
 
                     case REPLACE: {
-                        JsonNode value;
+                    	JsonElement value;
                         if (!flags.contains(CompatibilityFlags.MISSING_VALUES_AS_NULLS))
                             value = getPatchAttr(jsonNode, Constants.VALUE);
                         else
-                            value = getPatchAttrWithDefault(jsonNode, Constants.VALUE, NullNode.getInstance());
+                            value = getPatchAttrWithDefault(jsonNode, Constants.VALUE, JsonNull.INSTANCE);
                         processor.replace(path, value.deepCopy());
                         break;
                     }
 
                     case MOVE: {
-                        JsonPointer fromPath = JsonPointer.parse(getPatchStringAttr(jsonNode, Constants.FROM).textValue());
+                        JsonPointer fromPath = JsonPointer.parse(getTextValue(getPatchStringAttr(jsonNode, Constants.FROM)));
                         processor.move(fromPath, path);
                         break;
                     }
 
                     case COPY: {
-                        JsonPointer fromPath = JsonPointer.parse(getPatchStringAttr(jsonNode, Constants.FROM).textValue());
+                        JsonPointer fromPath = JsonPointer.parse(getTextValue(getPatchStringAttr(jsonNode, Constants.FROM)));
                         processor.copy(fromPath, path);
                         break;
                     }
 
                     case TEST: {
-                        JsonNode value;
+                    	JsonElement value;
                         if (!flags.contains(CompatibilityFlags.MISSING_VALUES_AS_NULLS))
                             value = getPatchAttr(jsonNode, Constants.VALUE);
                         else
-                            value = getPatchAttrWithDefault(jsonNode, Constants.VALUE, NullNode.getInstance());
+                            value = getPatchAttrWithDefault(jsonNode, Constants.VALUE, JsonNull.INSTANCE);
                         processor.test(path, value.deepCopy());
                         break;
                     }
@@ -124,29 +139,29 @@ public final class JsonPatch {
         }
     }
 
-    public static void validate(JsonNode patch, EnumSet<CompatibilityFlags> flags) throws InvalidJsonPatchException {
+    public static void validate(JsonElement patch, EnumSet<CompatibilityFlags> flags) throws InvalidJsonPatchException {
         process(patch, NoopProcessor.INSTANCE, flags);
     }
 
-    public static void validate(JsonNode patch) throws InvalidJsonPatchException {
+    public static void validate(JsonElement patch) throws InvalidJsonPatchException {
         validate(patch, CompatibilityFlags.defaults());
     }
 
-    public static JsonNode apply(JsonNode patch, JsonNode source, EnumSet<CompatibilityFlags> flags) throws JsonPatchApplicationException {
+    public static JsonElement apply(JsonElement patch, JsonElement source, EnumSet<CompatibilityFlags> flags) throws JsonPatchApplicationException {
         CopyingApplyProcessor processor = new CopyingApplyProcessor(source, flags);
         process(patch, processor, flags);
         return processor.result();
     }
 
-    public static JsonNode apply(JsonNode patch, JsonNode source) throws JsonPatchApplicationException {
+    public static JsonElement apply(JsonElement patch, JsonElement source) throws JsonPatchApplicationException {
         return apply(patch, source, CompatibilityFlags.defaults());
     }
 
-    public static void applyInPlace(JsonNode patch, JsonNode source) {
+    public static void applyInPlace(JsonElement patch, JsonElement source) {
         applyInPlace(patch, source, CompatibilityFlags.defaults());
     }
 
-    public static void applyInPlace(JsonNode patch, JsonNode source, EnumSet<CompatibilityFlags> flags) {
+    public static void applyInPlace(JsonElement patch, JsonElement source, EnumSet<CompatibilityFlags> flags) {
         InPlaceApplyProcessor processor = new InPlaceApplyProcessor(source, flags);
         process(patch, processor, flags);
     }

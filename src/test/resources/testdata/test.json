@@ -18,7 +18,7 @@
     {
       "op": [{ "op": "test", "path": "/x", "value": -30.000 }],
       "node": { "x": -29.020 },
-      "message": "Expected value -30.0 but found value -29.02 at /x"
+      "message": "Expected value -30.000 but found value -29.020 at /x"
     },
     {
       "op": [{ "op": "test", "path": "/x", "value": null }],

@@ -1,30 +1,30 @@
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+
 class InternalUtils {
 
-    static List<JsonNode> toList(ArrayNode input) {
+    static List<JsonElement> toList(JsonArray input) {
         int size = input.size();
-        List<JsonNode> toReturn = new ArrayList<JsonNode>(size);
+        List<JsonElement> toReturn = new ArrayList<JsonElement>(size);
         for (int i = 0; i < size; i++) {
             toReturn.add(input.get(i));
         }
         return toReturn;
     }
 
-    static List<JsonNode> longestCommonSubsequence(final List<JsonNode> a, final List<JsonNode> b) {
+    static List<JsonElement> longestCommonSubsequence(final List<JsonElement> a, final List<JsonElement> b) {
         if (a == null || b == null) {
             throw new NullPointerException("List must not be null for longestCommonSubsequence");
         }
 
-        List<JsonNode> toReturn = new LinkedList<JsonNode>();
+        List<JsonElement> toReturn = new LinkedList<JsonElement>();
 
         int aSize = a.size();
         int bSize = b.size();

@@ -16,17 +16,19 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.junit.Test;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.EnumSet;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 /**
  * User: holograph
@@ -36,85 +38,104 @@ public class ApiTest {
 
     @Test
     public void applyInPlaceMutatesSource() throws Exception {
-        JsonNode patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\", \"value\": \"b-value\" }]");
-        ObjectNode source = newObjectNode();
-        ObjectNode beforeApplication = source.deepCopy();
+    	JsonElement patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\", \"value\": \"b-value\" }]");
+    	JsonObject source = newObjectNode();
+        JsonObject beforeApplication = source.deepCopy();
         JsonPatch.apply(patch, source);
         assertThat(source, is(beforeApplication));
     }
 
     @Test
     public void applyDoesNotMutateSource() throws Exception {
-        JsonNode patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\", \"value\": \"b-value\" }]");
-        ObjectNode source = newObjectNode();
+    	JsonElement patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\", \"value\": \"b-value\" }]");
+    	JsonObject source = newObjectNode();
         JsonPatch.applyInPlace(patch, source);
-        assertThat(source.findValue("b").asText(), is("b-value"));
+        assertThat(findValue(source, "b").getAsString(), is("b-value"));
     }
 
     @Test
     public void applyDoesNotMutateSource2() throws Exception {
-        JsonNode patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\", \"value\": \"b-value\" }]");
-        ObjectNode source = newObjectNode();
-        ObjectNode beforeApplication = source.deepCopy();
+    	JsonElement patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\", \"value\": \"b-value\" }]");
+    	JsonObject source = newObjectNode();
+        JsonObject beforeApplication = source.deepCopy();
         JsonPatch.apply(patch, source);
         assertThat(source, is(beforeApplication));
     }
 
     @Test
     public void applyInPlaceMutatesSourceWithCompatibilityFlags() throws Exception {
-        JsonNode patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\" }]");
-        ObjectNode source = newObjectNode();
+    	JsonElement patch = readTree("[{ \"op\": \"add\", \"path\": \"/b\" }]");
+        JsonObject source = newObjectNode();
         JsonPatch.applyInPlace(patch, source, EnumSet.of(CompatibilityFlags.MISSING_VALUES_AS_NULLS));
-        assertTrue(source.findValue("b").isNull());
+        assertTrue(findValue(source, "b").isJsonNull());
     }
 
     @Test(expected = InvalidJsonPatchException.class)
     public void applyingNonArrayPatchShouldThrowAnException() throws IOException {
-        JsonNode invalid = objectMapper.readTree("{\"not\": \"a patch\"}");
-        JsonNode to = readTree("{\"a\":1}");
+    	JsonElement invalid = objectMapper.fromJson("{\"not\": \"a patch\"}", JsonElement.class);
+        JsonElement to = readTree("{\"a\":1}");
         JsonPatch.apply(invalid, to);
     }
 
     @Test(expected = InvalidJsonPatchException.class)
     public void applyingAnInvalidArrayShouldThrowAnException() throws IOException {
-        JsonNode invalid = readTree("[1, 2, 3, 4, 5]");
-        JsonNode to = readTree("{\"a\":1}");
+    	JsonElement invalid = readTree("[1, 2, 3, 4, 5]");
+        JsonElement to = readTree("{\"a\":1}");
         JsonPatch.apply(invalid, to);
     }
 
     @Test(expected = InvalidJsonPatchException.class)
     public void applyingAPatchWithAnInvalidOperationShouldThrowAnException() throws IOException {
-        JsonNode invalid = readTree("[{\"op\": \"what\"}]");
-        JsonNode to = readTree("{\"a\":1}");
+    	JsonElement invalid = readTree("[{\"op\": \"what\"}]");
+    	JsonElement to = readTree("{\"a\":1}");
         JsonPatch.apply(invalid, to);
     }
 
     @Test(expected = InvalidJsonPatchException.class)
     public void validatingNonArrayPatchShouldThrowAnException() throws IOException {
-        JsonNode invalid = readTree("{\"not\": \"a patch\"}");
+    	JsonElement invalid = readTree("{\"not\": \"a patch\"}");
         JsonPatch.validate(invalid);
     }
 
     @Test(expected = InvalidJsonPatchException.class)
     public void validatingAnInvalidArrayShouldThrowAnException() throws IOException {
-        JsonNode invalid = readTree("[1, 2, 3, 4, 5]");
+    	JsonElement invalid = readTree("[1, 2, 3, 4, 5]");
         JsonPatch.validate(invalid);
     }
 
     @Test(expected = InvalidJsonPatchException.class)
     public void validatingAPatchWithAnInvalidOperationShouldThrowAnException() throws IOException {
-        JsonNode invalid = readTree("[{\"op\": \"what\"}]");
+    	JsonElement invalid = readTree("[{\"op\": \"what\"}]");
         JsonPatch.validate(invalid);
     }
 
-    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static Gson objectMapper = new GsonBuilder().create();
 
-    private static JsonNode readTree(String jsonString) throws IOException {
-        return objectMapper.readTree(jsonString);
+    private static JsonElement readTree(String jsonString) throws IOException {
+        return objectMapper.fromJson(jsonString, JsonElement.class);
     }
 
-    private ObjectNode newObjectNode() {
-        return objectMapper.createObjectNode();
+    private JsonObject newObjectNode() {
+        return new JsonObject();
     }
+    
+    private static JsonElement findValue(JsonObject jsonObject, String fieldName) {
+        for (String key : jsonObject.keySet()) {
+            JsonElement element = jsonObject.get(key);
+
+            if (key.equals(fieldName)) {
+                return element;
+            }
+
+            if (element.isJsonObject()) {
+                JsonElement foundElement = findValue(element.getAsJsonObject(), fieldName);
+                if (foundElement != null) {
+                    return foundElement;
+                }
+            }
+        }
+        return null;
+    }
+    
 }
 

@@ -16,13 +16,13 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.google.gson.JsonElement;
 
 interface JsonPatchProcessor {
     void remove(JsonPointer path) throws JsonPointerEvaluationException;
-    void replace(JsonPointer path, JsonNode value) throws JsonPointerEvaluationException;
-    void add(JsonPointer path, JsonNode value) throws JsonPointerEvaluationException;
+    void replace(JsonPointer path, JsonElement value) throws JsonPointerEvaluationException;
+    void add(JsonPointer path, JsonElement value) throws JsonPointerEvaluationException;
     void move(JsonPointer fromPath, JsonPointer toPath) throws JsonPointerEvaluationException;
     void copy(JsonPointer fromPath, JsonPointer toPath) throws JsonPointerEvaluationException;
-    void test(JsonPointer path, JsonNode value) throws JsonPointerEvaluationException;
+    void test(JsonPointer path, JsonElement value) throws JsonPointerEvaluationException;
 }

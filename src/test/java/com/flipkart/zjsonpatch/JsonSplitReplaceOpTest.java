@@ -1,95 +1,97 @@
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 import java.util.EnumSet;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 
 /**
  * @author isopropylcyanide
  */
 public class JsonSplitReplaceOpTest {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	private static Gson OBJECT_MAPPER = new GsonBuilder().create();
 
     @Test
-    public void testJsonDiffSplitsReplaceIntoAddAndRemoveOperationWhenFlagIsAdded() throws JsonProcessingException {
+    public void testJsonDiffSplitsReplaceIntoAddAndRemoveOperationWhenFlagIsAdded() throws Exception {
         String source = "{ \"ids\": [ \"F1\", \"F3\" ] }";
         String target = "{ \"ids\": [ \"F1\", \"F6\", \"F4\" ] }";
-        JsonNode sourceNode = OBJECT_MAPPER.reader().readTree(source);
-        JsonNode targetNode = OBJECT_MAPPER.reader().readTree(target);
+        JsonElement sourceNode = OBJECT_MAPPER.fromJson(source, JsonElement.class);
+        JsonElement targetNode = OBJECT_MAPPER.fromJson(target, JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(sourceNode, targetNode, EnumSet.of(
+        JsonArray diff = JsonDiff.asJson(sourceNode, targetNode, EnumSet.of(
                 DiffFlags.ADD_EXPLICIT_REMOVE_ADD_ON_REPLACE
         ));
         assertEquals(3, diff.size());
-        assertEquals(Operation.REMOVE.rfcName(), diff.get(0).get("op").textValue());
-        assertEquals("/ids/1", diff.get(0).get("path").textValue());
-        assertEquals("F3", diff.get(0).get("value").textValue());
+        assertEquals(Operation.REMOVE.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        assertEquals("/ids/1", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        assertEquals("F3", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("value")));
 
-        assertEquals(Operation.ADD.rfcName(), diff.get(1).get("op").textValue());
-        assertEquals("/ids/1", diff.get(1).get("path").textValue());
-        assertEquals("F6", diff.get(1).get("value").textValue());
+        assertEquals(Operation.ADD.rfcName(), TestUtils.getTextValue(diff.get(1).getAsJsonObject().get("op")));
+        assertEquals("/ids/1", TestUtils.getTextValue(diff.get(1).getAsJsonObject().get("path")));
+        assertEquals("F6", TestUtils.getTextValue(diff.get(1).getAsJsonObject().get("value")));
 
-        assertEquals(Operation.ADD.rfcName(), diff.get(2).get("op").textValue());
-        assertEquals("/ids/2", diff.get(2).get("path").textValue());
-        assertEquals("F4", diff.get(2).get("value").textValue());
+        assertEquals(Operation.ADD.rfcName(), TestUtils.getTextValue(diff.get(2).getAsJsonObject().get("op")));
+        assertEquals("/ids/2", TestUtils.getTextValue(diff.get(2).getAsJsonObject().get("path")));
+        assertEquals("F4", TestUtils.getTextValue(diff.get(2).getAsJsonObject().get("value")));
     }
 
     @Test
-    public void testJsonDiffDoesNotSplitReplaceIntoAddAndRemoveOperationWhenFlagIsNotAdded() throws JsonProcessingException {
+    public void testJsonDiffDoesNotSplitReplaceIntoAddAndRemoveOperationWhenFlagIsNotAdded() throws Exception {
         String source = "{ \"ids\": [ \"F1\", \"F3\" ] }";
         String target = "{ \"ids\": [ \"F1\", \"F6\", \"F4\" ] }";
-        JsonNode sourceNode = OBJECT_MAPPER.reader().readTree(source);
-        JsonNode targetNode = OBJECT_MAPPER.reader().readTree(target);
+        JsonElement sourceNode = OBJECT_MAPPER.fromJson(source, JsonElement.class);
+        JsonElement targetNode = OBJECT_MAPPER.fromJson(target, JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(sourceNode, targetNode);
+        JsonArray diff = JsonDiff.asJson(sourceNode, targetNode);
         System.out.println(diff);
         assertEquals(2, diff.size());
-        assertEquals(Operation.REPLACE.rfcName(), diff.get(0).get("op").textValue());
-        assertEquals("/ids/1", diff.get(0).get("path").textValue());
-        assertEquals("F6", diff.get(0).get("value").textValue());
+        assertEquals(Operation.REPLACE.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        assertEquals("/ids/1", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        assertEquals("F6", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("value")));
 
-        assertEquals(Operation.ADD.rfcName(), diff.get(1).get("op").textValue());
-        assertEquals("/ids/2", diff.get(1).get("path").textValue());
-        assertEquals("F4", diff.get(1).get("value").textValue());
+        assertEquals(Operation.ADD.rfcName(), TestUtils.getTextValue(diff.get(1).getAsJsonObject().get("op")));
+        assertEquals("/ids/2", TestUtils.getTextValue(diff.get(1).getAsJsonObject().get("path")));
+        assertEquals("F4", TestUtils.getTextValue(diff.get(1).getAsJsonObject().get("value")));
     }
 
     @Test
-    public void testJsonDiffDoesNotSplitsWhenThereIsNoReplaceOperationButOnlyRemove() throws JsonProcessingException {
+    public void testJsonDiffDoesNotSplitsWhenThereIsNoReplaceOperationButOnlyRemove() throws Exception {
         String source = "{ \"ids\": [ \"F1\", \"F3\" ] }";
         String target = "{ \"ids\": [ \"F3\"] }";
 
-        JsonNode sourceNode = OBJECT_MAPPER.reader().readTree(source);
-        JsonNode targetNode = OBJECT_MAPPER.reader().readTree(target);
+        JsonElement sourceNode = OBJECT_MAPPER.fromJson(source, JsonElement.class);
+        JsonElement targetNode = OBJECT_MAPPER.fromJson(target, JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(sourceNode, targetNode, EnumSet.of(
+        JsonArray diff = JsonDiff.asJson(sourceNode, targetNode, EnumSet.of(
                 DiffFlags.ADD_EXPLICIT_REMOVE_ADD_ON_REPLACE
         ));
         assertEquals(1, diff.size());
-        assertEquals(Operation.REMOVE.rfcName(), diff.get(0).get("op").textValue());
-        assertEquals("/ids/0", diff.get(0).get("path").textValue());
-        assertEquals("F1", diff.get(0).get("value").textValue());
+        assertEquals(Operation.REMOVE.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        assertEquals("/ids/0", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        assertEquals("F1", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("value")));
     }
 
     @Test
-    public void testJsonDiffDoesNotSplitsWhenThereIsNoReplaceOperationButOnlyAdd() throws JsonProcessingException {
+    public void testJsonDiffDoesNotSplitsWhenThereIsNoReplaceOperationButOnlyAdd() throws Exception {
         String source = "{ \"ids\": [ \"F1\" ] }";
         String target = "{ \"ids\": [ \"F1\", \"F6\"] }";
 
-        JsonNode sourceNode = OBJECT_MAPPER.reader().readTree(source);
-        JsonNode targetNode = OBJECT_MAPPER.reader().readTree(target);
+        JsonElement sourceNode = OBJECT_MAPPER.fromJson(source, JsonElement.class);
+        JsonElement targetNode = OBJECT_MAPPER.fromJson(target, JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(sourceNode, targetNode, EnumSet.of(
+        JsonArray diff = JsonDiff.asJson(sourceNode, targetNode, EnumSet.of(
                 DiffFlags.ADD_EXPLICIT_REMOVE_ADD_ON_REPLACE
         ));
         assertEquals(1, diff.size());
-        assertEquals(Operation.ADD.rfcName(), diff.get(0).get("op").textValue());
-        assertEquals("/ids/1", diff.get(0).get("path").textValue());
-        assertEquals("F6", diff.get(0).get("value").textValue());
+        assertEquals(Operation.ADD.rfcName(), TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("op")));
+        assertEquals("/ids/1", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("path")));
+        assertEquals("F6", TestUtils.getTextValue(diff.get(0).getAsJsonObject().get("value")));
     }
 }

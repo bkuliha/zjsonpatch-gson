@@ -1,22 +1,24 @@
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 class RFC6901Tests {
     @Test
     void testRFC6901Compliance() throws IOException {
-        JsonNode data = TestUtils.loadResourceAsJsonNode("/rfc6901/data.json");
-        JsonNode testData = data.get("testData");
+        JsonElement data = TestUtils.loadResourceAsJsonNode("/rfc6901/data.json");
+        JsonElement testData = data.getAsJsonObject().get("testData");
 
-        ObjectNode emptyJson = TestUtils.DEFAULT_MAPPER.createObjectNode();
-        JsonNode patch = JsonDiff.asJson(emptyJson, testData);
-        JsonNode result = JsonPatch.apply(patch, emptyJson);
+        JsonObject emptyJson = new JsonObject();
+        JsonArray patch = JsonDiff.asJson(emptyJson, testData);
+        JsonElement result = JsonPatch.apply(patch, emptyJson);
         assertEquals(testData, result);
     }
 }

@@ -1,17 +1,19 @@
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.EnumSet;
 
-import static org.junit.Assert.*;
 import org.junit.Test;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 
 public class TestNodesEmissionTest {
 
-    private static ObjectMapper mapper = new ObjectMapper();
+    private static Gson mapper = new GsonBuilder().create();
 
     private static EnumSet<DiffFlags> flags;
 
@@ -22,73 +24,73 @@ public class TestNodesEmissionTest {
 
     @Test
     public void testNodeEmittedBeforeReplaceOperation() throws IOException {
-        JsonNode source = mapper.readTree("{\"key\":\"original\"}");
-        JsonNode target = mapper.readTree("{\"key\":\"replaced\"}");
+        JsonElement source = mapper.fromJson("{\"key\":\"original\"}", JsonElement.class);
+        JsonElement target = mapper.fromJson("{\"key\":\"replaced\"}", JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonElement diff = JsonDiff.asJson(source, target, flags);
 
-        JsonNode testNode = mapper.readTree("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}");
-        assertEquals(2, diff.size());
-        assertEquals(testNode, diff.iterator().next());
+        JsonElement testNode = mapper.fromJson("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}", JsonElement.class);
+        assertEquals(2, diff.getAsJsonArray().size());
+        assertEquals(testNode, diff.getAsJsonArray().iterator().next());
     }
 
     @Test
     public void testNodeEmittedBeforeCopyOperation() throws IOException {
-        JsonNode source = mapper.readTree("{\"key\":\"original\"}");
-        JsonNode target = mapper.readTree("{\"key\":\"original\", \"copied\":\"original\"}");
+        JsonElement source = mapper.fromJson("{\"key\":\"original\"}", JsonElement.class);
+        JsonElement target = mapper.fromJson("{\"key\":\"original\", \"copied\":\"original\"}", JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonElement diff = JsonDiff.asJson(source, target, flags);
 
-        JsonNode testNode = mapper.readTree("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}");
-        assertEquals(2, diff.size());
-        assertEquals(testNode, diff.iterator().next());
+        JsonElement testNode = mapper.fromJson("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}", JsonElement.class);
+        assertEquals(2, diff.getAsJsonArray().size());
+        assertEquals(testNode, diff.getAsJsonArray().iterator().next());
     }
 
     @Test
     public void testNodeEmittedBeforeMoveOperation() throws IOException {
-        JsonNode source = mapper.readTree("{\"key\":\"original\"}");
-        JsonNode target = mapper.readTree("{\"moved\":\"original\"}");
+        JsonElement source = mapper.fromJson("{\"key\":\"original\"}", JsonElement.class);
+        JsonElement target = mapper.fromJson("{\"moved\":\"original\"}", JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonElement diff = JsonDiff.asJson(source, target, flags);
 
-        JsonNode testNode = mapper.readTree("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}");
-        assertEquals(2, diff.size());
-        assertEquals(testNode, diff.iterator().next());
+        JsonElement testNode = mapper.fromJson("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}", JsonElement.class);
+        assertEquals(2, diff.getAsJsonArray().size());
+        assertEquals(testNode, diff.getAsJsonArray().iterator().next());
     }
 
     @Test
     public void testNodeEmittedBeforeRemoveOperation() throws IOException {
-        JsonNode source = mapper.readTree("{\"key\":\"original\"}");
-        JsonNode target = mapper.readTree("{}");
+        JsonElement source = mapper.fromJson("{\"key\":\"original\"}", JsonElement.class);
+        JsonElement target = mapper.fromJson("{}", JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonElement diff = JsonDiff.asJson(source, target, flags);
 
-        JsonNode testNode = mapper.readTree("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}");
-        assertEquals(2, diff.size());
-        assertEquals(testNode, diff.iterator().next());
+        JsonElement testNode = mapper.fromJson("{\"op\":\"test\",\"path\":\"/key\",\"value\":\"original\"}", JsonElement.class);
+        assertEquals(2, diff.getAsJsonArray().size());
+        assertEquals(testNode, diff.getAsJsonArray().iterator().next());
     }
 
     @Test
     public void testNodeEmittedBeforeRemoveFromMiddleOfArray() throws IOException {
-        JsonNode source = mapper.readTree("{\"key\":[1,2,3]}");
-        JsonNode target = mapper.readTree("{\"key\":[1,3]}");
+        JsonElement source = mapper.fromJson("{\"key\":[1,2,3]}", JsonElement.class);
+        JsonElement target = mapper.fromJson("{\"key\":[1,3]}", JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonElement diff = JsonDiff.asJson(source, target, flags);
 
-        JsonNode testNode = mapper.readTree("{\"op\":\"test\",\"path\":\"/key/1\",\"value\":2}");
-        assertEquals(2, diff.size());
-        assertEquals(testNode, diff.iterator().next());
+        JsonElement testNode = mapper.fromJson("{\"op\":\"test\",\"path\":\"/key/1\",\"value\":2}", JsonElement.class);
+        assertEquals(2, diff.getAsJsonArray().size());
+        assertEquals(testNode, diff.getAsJsonArray().iterator().next());
     }
 
     @Test
     public void testNodeEmittedBeforeRemoveFromTailOfArray() throws IOException {
-        JsonNode source = mapper.readTree("{\"key\":[1,2,3]}");
-        JsonNode target = mapper.readTree("{\"key\":[1,2]}");
+        JsonElement source = mapper.fromJson("{\"key\":[1,2,3]}", JsonElement.class);
+        JsonElement target = mapper.fromJson("{\"key\":[1,2]}", JsonElement.class);
 
-        JsonNode diff = JsonDiff.asJson(source, target, flags);
+        JsonElement diff = JsonDiff.asJson(source, target, flags);
 
-        JsonNode testNode = mapper.readTree("{\"op\":\"test\",\"path\":\"/key/2\",\"value\":3}");
-        assertEquals(2, diff.size());
-        assertEquals(testNode, diff.iterator().next());
+        JsonElement testNode = mapper.fromJson("{\"op\":\"test\",\"path\":\"/key/2\",\"value\":3}", JsonElement.class);
+        assertEquals(2, diff.getAsJsonArray().size());
+        assertEquals(testNode, diff.getAsJsonArray().iterator().next());
     }
 }

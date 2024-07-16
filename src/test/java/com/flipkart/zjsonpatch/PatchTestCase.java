@@ -16,20 +16,20 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.gson.JsonElement;
+
 public class PatchTestCase {
 
     private final boolean operation;
-    private final JsonNode node;
+    private final JsonElement node;
     private final String sourceFile;
 
-    private PatchTestCase(boolean isOperation, JsonNode node, String sourceFile) {
+    private PatchTestCase(boolean isOperation, JsonElement node, String sourceFile) {
         this.operation = isOperation;
         this.node = node;
         this.sourceFile = sourceFile;
@@ -39,7 +39,7 @@ public class PatchTestCase {
         return operation;
     }
 
-    public JsonNode getNode() {
+    public JsonElement getNode() {
         return node;
     }
 
@@ -49,15 +49,15 @@ public class PatchTestCase {
 
     public static Collection<PatchTestCase> load(String fileName) throws IOException {
         String path = "/testdata/" + fileName + ".json";
-        JsonNode tree = TestUtils.loadResourceAsJsonNode(path);
+        JsonElement tree = TestUtils.loadResourceAsJsonNode(path);
 
         List<PatchTestCase> result = new ArrayList<PatchTestCase>();
-        for (JsonNode node : tree.get("errors")) {
+        for (JsonElement node : tree.getAsJsonObject().get("errors").getAsJsonArray()) {
             if (isEnabled(node)) {
                 result.add(new PatchTestCase(false, node, path));
             }
         }
-        for (JsonNode node : tree.get("ops")) {
+        for (JsonElement node : tree.getAsJsonObject().get("ops").getAsJsonArray()) {
             if (isEnabled(node)) {
                 result.add(new PatchTestCase(true, node, path));
             }
@@ -65,8 +65,11 @@ public class PatchTestCase {
         return result;
     }
 
-    private static boolean isEnabled(JsonNode node) {
-        JsonNode disabled = node.get("disabled");
-        return (disabled == null || !disabled.booleanValue());
+    private static boolean isEnabled(JsonElement node) {
+    	if (!node.isJsonObject()) {
+    		return true;
+    	}
+    	JsonElement disabled = node.getAsJsonObject().get("disabled");
+        return (disabled == null || !disabled.isJsonPrimitive() || !disabled.getAsBoolean());
     }
 }

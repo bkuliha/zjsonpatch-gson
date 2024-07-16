@@ -1,12 +1,15 @@
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.Test;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 
 public class JsonPointerTest {
 
@@ -148,21 +151,21 @@ public class JsonPointerTest {
     public void evaluatesAccordingToRFC6901() throws IOException, JsonPointerEvaluationException {
         // Tests resolution according to https://tools.ietf.org/html/rfc6901#section-5
 
-        ObjectMapper om = TestUtils.DEFAULT_MAPPER;
-        JsonNode data = TestUtils.loadResourceAsJsonNode("/rfc6901/data.json");
-        JsonNode testData = data.get("testData");
+        Gson om = TestUtils.DEFAULT_MAPPER;
+        JsonElement data = TestUtils.loadResourceAsJsonNode("/rfc6901/data.json");
+        JsonElement testData = data.getAsJsonObject().get("testData");
 
-        assertEquals(om.readTree("[\"bar\", \"baz\"]"), JsonPointer.parse("/foo").evaluate(testData));
-        assertEquals(om.readTree("\"bar\""), JsonPointer.parse("/foo/0").evaluate(testData));
-        assertEquals(om.readTree("0"), JsonPointer.parse("/").evaluate(testData));
-        assertEquals(om.readTree("1"), JsonPointer.parse("/a~1b").evaluate(testData));
-        assertEquals(om.readTree("2"), JsonPointer.parse("/c%d").evaluate(testData));
-        assertEquals(om.readTree("3"), JsonPointer.parse("/e^f").evaluate(testData));
-        assertEquals(om.readTree("4"), JsonPointer.parse("/g|h").evaluate(testData));
-        assertEquals(om.readTree("5"), JsonPointer.parse("/i\\j").evaluate(testData));
-        assertEquals(om.readTree("6"), JsonPointer.parse("/k\"l").evaluate(testData));
-        assertEquals(om.readTree("7"), JsonPointer.parse("/ ").evaluate(testData));
-        assertEquals(om.readTree("8"), JsonPointer.parse("/m~0n").evaluate(testData));
+        assertEquals(om.fromJson("[\"bar\", \"baz\"]", JsonElement.class), JsonPointer.parse("/foo").evaluate(testData));
+        assertEquals(om.fromJson("\"bar\"", JsonElement.class), JsonPointer.parse("/foo/0").evaluate(testData));
+        assertEquals(om.fromJson("0", JsonElement.class), JsonPointer.parse("/").evaluate(testData));
+        assertEquals(om.fromJson("1", JsonElement.class), JsonPointer.parse("/a~1b").evaluate(testData));
+        assertEquals(om.fromJson("2", JsonElement.class), JsonPointer.parse("/c%d").evaluate(testData));
+        assertEquals(om.fromJson("3", JsonElement.class), JsonPointer.parse("/e^f").evaluate(testData));
+        assertEquals(om.fromJson("4", JsonElement.class), JsonPointer.parse("/g|h").evaluate(testData));
+        assertEquals(om.fromJson("5", JsonElement.class), JsonPointer.parse("/i\\j").evaluate(testData));
+        assertEquals(om.fromJson("6", JsonElement.class), JsonPointer.parse("/k\"l").evaluate(testData));
+        assertEquals(om.fromJson("7", JsonElement.class), JsonPointer.parse("/ ").evaluate(testData));
+        assertEquals(om.fromJson("8", JsonElement.class), JsonPointer.parse("/m~0n").evaluate(testData));
     }
 
     // Utility methods --

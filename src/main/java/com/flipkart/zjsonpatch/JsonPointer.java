@@ -1,13 +1,12 @@
 package com.flipkart.zjsonpatch;
 
-
-import com.fasterxml.jackson.databind.JsonNode;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.google.gson.JsonElement;
 
 /**
  * Implements RFC 6901 (JSON Pointer)
@@ -202,7 +201,7 @@ public class JsonPointer {
         return isRoot() ? this : new JsonPointer(Arrays.copyOf(tokens, tokens.length - 1));
     }
 
-    private void error(int atToken, String message, JsonNode document) throws JsonPointerEvaluationException {
+    private void error(int atToken, String message, JsonElement document) throws JsonPointerEvaluationException {
         throw new JsonPointerEvaluationException(
                 message,
                 new JsonPointer(Arrays.copyOf(tokens, atToken)),
@@ -219,23 +218,23 @@ public class JsonPointer {
      * @return The {@link JsonNode} resolved by evaluating this JSON pointer.
      * @throws JsonPointerEvaluationException The pointer could not be evaluated.
      */
-    public JsonNode evaluate(final JsonNode document) throws JsonPointerEvaluationException {
-        JsonNode current = document;
+    public JsonElement evaluate(final JsonElement document) throws JsonPointerEvaluationException {
+    	JsonElement current = document;
 
         for (int idx = 0; idx < tokens.length; ++idx) {
             final RefToken token = tokens[idx];
 
-            if (current.isArray()) {
+            if (current.isJsonArray()) {
                 if (!token.isArrayIndex())
                     error(idx, "Can't reference field \"" + token.getField() + "\" on array", document);
-                if (token.getIndex() == LAST_INDEX || token.getIndex() >= current.size())
+                if (token.getIndex() == LAST_INDEX || token.getIndex() >= current.getAsJsonArray().size())
                     error(idx, "Array index " + token.toString() + " is out of bounds", document);
-                current = current.get(token.getIndex());
+                current = current.getAsJsonArray().get(token.getIndex());
             }
-            else if (current.isObject()) {
-                if (!current.has(token.getField()))
+            else if (current.isJsonObject()) {
+                if (!current.getAsJsonObject().has(token.getField()))
                     error(idx,"Missing field \"" + token.getField() + "\"", document);
-                current = current.get(token.getField());
+                current = current.getAsJsonObject().get(token.getField());
             }
             else
                 error(idx, "Can't reference past scalar value", document);

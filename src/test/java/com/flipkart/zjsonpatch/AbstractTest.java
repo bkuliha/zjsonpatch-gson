@@ -16,24 +16,24 @@
 
 package com.flipkart.zjsonpatch;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.hamcrest.core.StringContains.containsString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 import org.apache.commons.io.output.StringBuilderWriter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 @RunWith(Parameterized.class)
 public abstract class AbstractTest {
@@ -55,14 +55,14 @@ public abstract class AbstractTest {
     }
 
     private void testOperation() throws Exception {
-        JsonNode node = p.getNode();
+        JsonElement node = p.getNode();
 
-        JsonNode doc = node.get("node");
-        JsonNode expected = node.get("expected");
-        JsonNode patch = node.get("op");
-        String message = node.has("message") ? node.get("message").toString() : "";
+        JsonElement doc = node.getAsJsonObject().get("node");
+        JsonElement expected = node.getAsJsonObject().get("expected");
+        JsonElement patch = node.getAsJsonObject().get("op");
+        String message = node.getAsJsonObject().has("message") ? node.getAsJsonObject().get("message").toString() : "";
 
-        JsonNode result = JsonPatch.apply(patch, doc);
+        JsonElement result = JsonPatch.apply(patch, doc);
         String failMessage = "The following test failed: \n" +
                 "message: " + message + '\n' +
                 "at: " + p.getSourceFile();
@@ -73,17 +73,17 @@ public abstract class AbstractTest {
         return Class.forName(type.contains(".") ? type : "com.flipkart.zjsonpatch." + type);
     }
 
-    private String errorMessage(String header) throws JsonProcessingException {
+    private String errorMessage(String header) throws Exception {
         return errorMessage(header, null);
     }
-    private String errorMessage(String header, Exception e) throws JsonProcessingException {
+    private String errorMessage(String header, Exception e) throws Exception {
         StringBuilder res =
                 new StringBuilder()
                         .append(header)
                         .append("\nFull test case (in file ")
                         .append(p.getSourceFile())
                         .append("):\n")
-                        .append(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(p.getNode()));
+                        .append(new GsonBuilder().setPrettyPrinting().create().toJson(p.getNode()));
         if (e != null) {
             res.append("\nFull error: ");
             e.printStackTrace(new PrintWriter(new StringBuilderWriter(res)));
@@ -91,13 +91,13 @@ public abstract class AbstractTest {
         return res.toString();
     }
 
-    private void testError() throws JsonProcessingException, ClassNotFoundException {
-        JsonNode node = p.getNode();
-        JsonNode first = node.get("node");
-        JsonNode patch = node.get("op");
-        JsonNode message = node.get("message");
+    private void testError() throws Exception, ClassNotFoundException {
+        JsonObject node = p.getNode().getAsJsonObject();
+        JsonElement first = node.get("node");
+        JsonElement patch = node.get("op");
+        JsonElement message = node.get("message");
         Class<?> type =
-                node.has("type") ? exceptionType(node.get("type").textValue()) : JsonPatchApplicationException.class;
+                node.has("type") ? exceptionType(TestUtils.getTextValue(node.get("type"))) : JsonPatchApplicationException.class;
 
         try {
             JsonPatch.apply(patch, first);
@@ -116,7 +116,7 @@ public abstract class AbstractTest {
                     assertThat(
                             errorMessage("Operation failed but with wrong message", e),
                             e.toString(),
-                            containsString(message.textValue()));    // equalTo would be better, but fail existing tests
+                            containsString(TestUtils.getTextValue(message)));    // equalTo would be better, but fail existing tests
                 }
             }
         }
